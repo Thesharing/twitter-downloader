@@ -3,6 +3,7 @@ import os
 import requests
 import sys
 from time import sleep
+from typing import Iterable
 
 from .checkpoint import Checkpoint
 from .exceptions import NetworkException
@@ -29,7 +30,7 @@ class TwitterSpider:
 
     def crawl_timeline(self, screen_name: str = None, user_id: str = None,
                        include_retweets: bool = True, exclude_replies: bool = True,
-                       start_id=None, since_id=None, delay: float = None):
+                       start_id=None, since_id=None, delay: float = None) -> Iterable[Tweet]:
         """
 
         :param screen_name:
@@ -58,13 +59,13 @@ class TwitterSpider:
         while len(tweets) > 0:
             sleep(delay)
             tweets = self.timeline(screen_name=screen_name, user_id=user_id, include_rts=include_retweets,
-                                   exclude_replies=exclude_replies, max_id=tweet_id + 1, since_id=since_id)
+                                   exclude_replies=exclude_replies, max_id=tweet_id - 1, since_id=since_id)
             for tweet in tweets:
                 tweet_id = tweet['id']
                 yield Tweet(tweet)
 
     def crawl_likes(self, screen_name: str = None, user_id: str = None,
-                    start_id=None, since_id=None, delay: float = None):
+                    start_id=None, since_id=None, delay: float = None) -> Iterable[Tweet]:
         if delay is None:
             delay = self.delay
 
@@ -80,14 +81,14 @@ class TwitterSpider:
 
         while len(tweets) > 0:
             sleep(delay)
-            tweets = self.likes(screen_name=screen_name, user_id=user_id, max_id=tweet_id + 1, since_id=since_id)
+            tweets = self.likes(screen_name=screen_name, user_id=user_id, max_id=tweet_id - 1, since_id=since_id)
             for tweet in tweets:
                 tweet_id = tweet['id']
                 yield Tweet(tweet)
 
     def crawl_following(self, screen_name: str = None, user_id: str = None,
                         include_retweets: bool = True, exclude_replies: bool = True,
-                        checkpoint: Checkpoint = None, delay: float = None):
+                        checkpoint: Checkpoint = None, delay: float = None) -> Iterable[Tweet]:
         if delay is None:
             delay = self.delay
         cursor = checkpoint.cursor
@@ -105,14 +106,14 @@ class TwitterSpider:
                     for tweet in self.crawl_timeline(user_id=user['id'], include_retweets=include_retweets,
                                                      exclude_replies=exclude_replies, start_id=checkpoint.tweet_id,
                                                      delay=delay):
-                        yield Tweet(tweet)
+                        yield tweet
                 else:
                     continue
             else:
                 sleep(delay)
                 for tweet in self.crawl_timeline(user_id=user['id'], include_retweets=include_retweets,
                                                  exclude_replies=exclude_replies, delay=delay):
-                    yield Tweet(tweet)
+                    yield tweet
         cursor = users['next_cursor']
 
         while len(users['users']) > 0:
@@ -122,7 +123,7 @@ class TwitterSpider:
                 sleep(delay)
                 for tweet in self.crawl_timeline(user_id=user['id'], include_retweets=include_retweets,
                                                  exclude_replies=exclude_replies, delay=delay):
-                    yield Tweet(tweet)
+                    yield tweet
             cursor = users['next_cursor']
 
     def _get(self, url, params):
