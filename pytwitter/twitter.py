@@ -6,7 +6,7 @@ from time import sleep
 from typing import Iterable
 
 from .checkpoint import Checkpoint
-from .exceptions import NetworkException
+from .exceptions import NetworkException, TooManyErrorsException
 from .log import Log
 from .paths import PathGenerator
 from .tweet import Tweet
@@ -17,16 +17,18 @@ else:
     import urlparse
 
 DELAY = 5
+RETRY = 5
 
 
 class TwitterSpider:
 
-    def __init__(self, token: str, proxies: dict = None, logger=None, delay=DELAY):
+    def __init__(self, token: str, proxies: dict = None, logger=None, delay=DELAY, retry=RETRY):
         self.base_url = 'https://api.twitter.com/1.1/'
         self.proxies = proxies
-        self.headers = {'authorization': token}
+        self.headers = {'Authorization': token}
         self.logger = logger if logger is not None else Log.create_logger()
         self.delay = delay
+        self.retry = retry
 
     def crawl_timeline(self, screen_name: str = None, user_id: str = None,
                        include_retweets: bool = True, exclude_replies: bool = True,
@@ -130,11 +132,18 @@ class TwitterSpider:
         """
         Access API with requests and return the result with the format of json.
         """
-        r = requests.get(url=url, params=params, headers=self.headers, proxies=self.proxies)
-        if r.status_code == 200:
-            return json.loads(r.text)
-        else:
-            raise NetworkException('Met error code {} when visiting {}.'.format(r.status_code, r.url))
+        retry = self.retry
+        while retry > 0:
+            try:
+                r = requests.get(url=url, params=params, headers=self.headers, proxies=self.proxies)
+                if r.status_code == 200:
+                    return json.loads(r.text)
+                else:
+                    raise NetworkException('Met error code {} when visiting {}.'.format(r.status_code, r.url))
+            except requests.exceptions.RequestException as e:
+                self.logger.error(e)
+                retry -= 1
+        raise TooManyErrorsException('Max retry limit exceeded when visiting {}.'.format(url))
 
     def _url(self, url):
         return urlparse.urljoin(self.base_url, url)
@@ -191,10 +200,12 @@ class TwitterSpider:
                             the retweets will still contain a full user object.
         :return: List of tweets= objects.
         """
-        self.logger.info('Get timeline: %s', locals())
+        params = locals()
+        del (params['self'])
+        self.logger.info('Get timeline: %s', params)
         if user_id is None and screen_name is None:
             raise ValueError('User ID or username is required.')
-        return self._get(self._url('statuses/user_timeline.json'), locals())
+        return self._get(self._url('statuses/user_timeline.json'), params)
 
     def user(self, user_id: str = None, screen_name: str = None, include_entitles: bool = None):
         """
@@ -221,10 +232,12 @@ class TwitterSpider:
         :param include_entitles: The entities node will not be included when set to false.
         :return: User-object, see https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/user-object .
         """
-        self.logger.info('Get user: %s', locals())
+        params = locals()
+        del (params['self'])
+        self.logger.info('Get user: %s', params)
         if user_id is None and screen_name is None:
             raise ValueError('User ID or username is required')
-        return self._get(self._url('user/show.json'), locals())
+        return self._get(self._url('user/show.json'), params)
 
     def followers(self, user_id: str = None, screen_name: str = None, cursor=None,
                   count: int = 200, skip_status: bool = None, include_user_entitles: bool = None):
@@ -267,10 +280,12 @@ class TwitterSpider:
                 }
                 For user-object, see https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/user-object .
         """
-        self.logger.info('Get followers: %s', locals())
+        params = locals()
+        del (params['self'])
+        self.logger.info('Get followers: %s', params)
         if user_id is None and screen_name is None:
             raise ValueError('User ID or username is required')
-        return self._get(self._url('followers/list.json'), locals())
+        return self._get(self._url('followers/list.json'), params)
 
     def follower_ids(self, user_id: str = None, screen_name: str = None, cursor=None,
                      count: int = 200, skip_status: bool = None, include_user_entitles: bool = None):
@@ -311,10 +326,12 @@ class TwitterSpider:
                     "next_cursor_str": "1333504313713126852"
                 }
         """
-        self.logger.info('Get follower IDs: %s', locals())
+        params = locals()
+        del (params['self'])
+        self.logger.info('Get follower IDs: %s', params)
         if user_id is None and screen_name is None:
             raise ValueError('User ID or username is required')
-        return self._get(self._url('followers/ids.json'), locals())
+        return self._get(self._url('followers/ids.json'), params)
 
     def following(self, user_id: str = None, screen_name: str = None, cursor=None,
                   count: int = 200, stringify_ids: bool = None):
@@ -359,10 +376,12 @@ class TwitterSpider:
                 }
                 For user-object, see https://developer.twitter.com/en/docs/tweets/data-dictionary/overview/user-object .
         """
-        self.logger.info('Get followings: %s', locals())
+        params = locals()
+        del (params['self'])
+        self.logger.info('Get followings: %s', params)
         if user_id is None and screen_name is None:
             raise ValueError('User ID or username is required')
-        return self._get(self._url('friends/list.json'), locals())
+        return self._get(self._url('friends/list.json'), params)
 
     def following_ids(self, user_id: str = None, screen_name: str = None, cursor=None,
                       count: int = 200, stringify_ids: bool = None):
@@ -405,10 +424,12 @@ class TwitterSpider:
                     "next_cursor_str": "1333504313713126852"
                 }
         """
-        self.logger.info('Get following IDs: %s', locals())
+        params = locals()
+        del (params['self'])
+        self.logger.info('Get following IDs: %s', params)
         if user_id is None and screen_name is None:
             raise ValueError('User ID or username is required')
-        return self._get(self._url('friends/ids.json'), locals())
+        return self._get(self._url('friends/ids.json'), params)
 
     def likes(self, user_id: str = None, screen_name: str = None, count: int = 200,
               since_id=None, max_id=None, include_entitles: bool = None):
@@ -439,10 +460,12 @@ class TwitterSpider:
         :param include_entitles: The entities node will be omitted when set to false.
         :return: List of tweet objects.
         """
-        self.logger.info('Get likes: %s', locals())
+        params = locals()
+        del (params['self'])
+        self.logger.info('Get likes: %s', params)
         if user_id is None and screen_name is None:
             raise ValueError('User ID or username is required')
-        return self._get(self._url('favorites/list.json'), locals())
+        return self._get(self._url('favorites/list.json'), params)
 
     def tweet(self, tweet_id: str, trim_user: bool = None,
               include_my_retweet: bool = None, include_entitles: bool = None,
@@ -489,28 +512,38 @@ class TwitterSpider:
                                  and when that card was attached using the card_uri value.
         :return: The tweet object.
         """
-        self.logger.info('Get tweet: %s', locals())
+        params = locals()
+        del (params['self'])
+        self.logger.info('Get tweet: %s', params)
         if tweet_id is None:
             raise ValueError('Tweet ID is required')
-        return self._get(self._url('statuses/show.json'), locals())
+        return self._get(self._url('statuses/show.json'), params)
 
 
 class TwitterDownloader:
 
-    def __init__(self, path: PathGenerator, proxies: dict = None, logger=None):
+    def __init__(self, path: PathGenerator, proxies: dict = None, logger=None, retry=RETRY):
         self.path = path
         self.proxies = proxies
+        self.retry = retry
         if logger is not None:
             self.logger = logger
         else:
             self.logger = Log.create_logger()
 
     def _get(self, url):
-        r = requests.get(url=url, proxies=self.proxies)
-        if r.status_code == 200:
-            return r.content
-        else:
-            raise NetworkException('Met error code {} when visiting {}.'.format(r.status_code, r.url))
+        retry = self.retry
+        while retry > 0:
+            try:
+                r = requests.get(url=url, proxies=self.proxies)
+                if r.status_code == 200:
+                    return r.content
+                else:
+                    raise NetworkException('Met error code {} when visiting {}.'.format(r.status_code, r.url))
+            except requests.exceptions.RequestException as e:
+                self.logger.error(e)
+                retry -= 1
+        raise TooManyErrorsException('Max retry limit exceeded when visiting {}.'.format(url))
 
     def _save(self, content, path):
         if os.path.exists(path):
