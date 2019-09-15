@@ -3,8 +3,8 @@ import logging
 
 class Log:
     @staticmethod
-    def create_logger(name: str = 'PyTwitter', level: str = 'INFO',
-                      mode: str = 'a', path: str = './twitter.log'):
+    def create_logger(name: str = 'Logger', path: str = './logger.log',
+                      level: str = 'INFO', mode: str = 'a', ):
         logger = logging.getLogger(name)
         if len(logger.handlers) == 0:
             logger.propagate = False

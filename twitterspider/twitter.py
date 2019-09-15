@@ -6,7 +6,7 @@ from time import sleep
 from typing import Iterable
 
 from .checkpoint import Checkpoint
-from .exceptions import NetworkException, TooManyErrorsException
+from .exceptions import NetworkException, RetryLimitExceededException, UnauthorizedException
 from .log import Log
 from .paths import PathGenerator
 from .tweet import Tweet
@@ -26,7 +26,7 @@ class TwitterSpider:
         self.base_url = 'https://api.twitter.com/1.1/'
         self.proxies = proxies
         self.headers = {'Authorization': token}
-        self.logger = logger if logger is not None else Log.create_logger()
+        self.logger = logger if logger is not None else Log.create_logger('TwitterSpider', './twitter.log')
         self.delay = delay
         self.retry = retry
 
@@ -138,12 +138,14 @@ class TwitterSpider:
                 r = requests.get(url=url, params=params, headers=self.headers, proxies=self.proxies)
                 if r.status_code == 200:
                     return json.loads(r.text)
+                elif r.status_code == 401:
+                    raise UnauthorizedException()
                 else:
                     raise NetworkException('Met error code {} when visiting {}.'.format(r.status_code, r.url))
             except requests.exceptions.RequestException as e:
                 self.logger.error(e)
                 retry -= 1
-        raise TooManyErrorsException('Max retry limit exceeded when visiting {}.'.format(url))
+        raise RetryLimitExceededException('Max retry limit exceeded when visiting {}.'.format(url))
 
     def _url(self, url):
         return urlparse.urljoin(self.base_url, url)
@@ -526,10 +528,7 @@ class TwitterDownloader:
         self.path = path
         self.proxies = proxies
         self.retry = retry
-        if logger is not None:
-            self.logger = logger
-        else:
-            self.logger = Log.create_logger()
+        self.logger = logger if logger is not None else Log.create_logger('TwitterSpider', './twitter.log')
 
     def _get(self, url):
         retry = self.retry
@@ -543,7 +542,7 @@ class TwitterDownloader:
             except requests.exceptions.RequestException as e:
                 self.logger.error(e)
                 retry -= 1
-        raise TooManyErrorsException('Max retry limit exceeded when visiting {}.'.format(url))
+        raise RetryLimitExceededException('Max retry limit exceeded when visiting {}.'.format(url))
 
     def _save(self, content, path):
         if os.path.exists(path):

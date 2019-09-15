@@ -1,6 +1,7 @@
 import os
 import sys
-from enum import Enum
+
+from .media import MediaType
 
 if sys.version_info[0] > 2:
     import urllib.parse as urlparse
@@ -39,13 +40,3 @@ class User:
         self.name = user['name']
         self.nickname = user['screen_name']
         self.id = user['id']
-
-
-class MediaType(Enum):
-    video = 1
-    photo = 2
-    other = 3
-
-    @staticmethod
-    def convert(name: str):
-        return MediaType(name.lower())

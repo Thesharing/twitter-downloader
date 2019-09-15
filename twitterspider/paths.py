@@ -2,7 +2,7 @@ import re
 import os
 from abc import abstractmethod
 
-from .tweet import MediaType
+from .media import MediaType
 
 
 class PathGenerator:
@@ -13,7 +13,7 @@ class PathGenerator:
         self.folder_path = folder_path
 
     @abstractmethod
-    def path(self, file_name, media_type, media_id, media_url, user_id, user_name, screen_name):
+    def path(self, **kwargs):
         pass
 
     @staticmethod

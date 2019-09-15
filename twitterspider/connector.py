@@ -19,9 +19,17 @@ class Redis(Database):
                  host='localhost',
                  port=6379):
         super(Redis, self).__init__(name, 'Redis')
+        self.host = host
+        self.port = port
+
         self.conn = redis.StrictRedis(host=host,
                                       port=port,
                                       decode_responses=True)
+
+    def check_connection(self):
+        conn = redis.StrictRedis(host=self.host, port=self.port,
+                                 decode_responses=True)
+        conn.client_list()
 
     @abstractmethod
     def count(self):
@@ -109,9 +117,19 @@ class MongoDB(Database):
                  port=27017,
                  db='spider'):
         super(MongoDB, self).__init__(collection, 'MongoDB')
+
+        self.host = host
+        self.port = port
+        self.db = db
+
         client = pymongo.MongoClient(host=host, port=port)
         database = client[db]
         self.conn = database[collection]
+
+    def check_connection(self):
+        client = pymongo.MongoClient(host=self.host, port=self.port,
+                                     serverSelectionTimeoutMS=3000, connectTimeoutMS=3000)
+        client.admin.command('ismaster')
 
     def insert(self, documents):
         if type(documents) is list:
@@ -126,6 +144,12 @@ class MongoDB(Database):
             return self.conn.delete_one(filter=filter)
 
     def update(self, filter, update, all=False):
+        """
+        :param filter:
+        :param update: Update operations, check https://docs.mongodb.com/manual/reference/operator/update/#id1 for more.
+        :param all:
+        :return:
+        """
         if all:
             return self.conn.update_many(filter=filter, update=update)
         else:
@@ -141,13 +165,30 @@ class MongoDB(Database):
             return self.conn.find_one(filter=filter, **kwargs)
 
     def all(self):
+        """
+        Return all documents in the collection.
+        :return: a iterator of all documents
+        """
         return self.conn.find()
 
     def count(self, filter=None, **kwargs):
+        """
+        Return the count of filtered documents in the collection.
+        :param filter: a dict contains filters
+        :param kwargs: other parameters pymongo supports
+        :return:
+        """
         if filter is None:
             return self.conn.count_documents(filter={}, **kwargs)
         else:
             return self.conn.count_documents(filter=filter, **kwargs)
+
+    def drop(self):
+        """
+        Drop the collection.
+        :return: None
+        """
+        self.conn.drop()
 
     def create_index(self, index):
         """
@@ -174,17 +215,3 @@ class LocalFile(Database):
                             if os.path.isfile(os.path.join(self.file_path, name))])
         else:
             return 0
-
-
-def test_redis(host='localhost',
-               port=6379):
-    conn = redis.StrictRedis(host=host, port=port,
-                             decode_responses=True)
-    conn.client_list()
-
-
-def test_mongodb(host='localhost',
-                 port=27017):
-    client = pymongo.MongoClient(host=host, port=port,
-                                 serverSelectionTimeoutMS=3000, connectTimeoutMS=3000)
-    client.admin.command('ismaster')
