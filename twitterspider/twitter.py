@@ -1,13 +1,13 @@
 import json
 import os
-import requests
 import sys
 from time import sleep
 from typing import Iterable
 
+from spiderutil.log import Log
+from spiderutil.network import Session
+
 from .checkpoint import Checkpoint
-from .exceptions import NetworkException, RetryLimitExceededException, UnauthorizedException
-from .log import Log
 from .paths import PathGenerator
 from .tweet import Tweet
 
@@ -22,13 +22,13 @@ RETRY = 5
 
 class TwitterSpider:
 
-    def __init__(self, token: str, proxies: dict = None, logger=None, delay=DELAY, retry=RETRY):
+    def __init__(self, token: str, proxies: dict = None, delay=DELAY, retry=RETRY,
+                 logger=None, session: Session = None):
         self.base_url = 'https://api.twitter.com/1.1/'
-        self.proxies = proxies
         self.headers = {'Authorization': token}
         self.logger = logger if logger is not None else Log.create_logger('TwitterSpider', './twitter.log')
         self.delay = delay
-        self.retry = retry
+        self.session = Session(retry=retry, proxies=proxies) if session is None else session
 
     def crawl_timeline(self, screen_name: str = None, user_id: str = None,
                        include_retweets: bool = True, exclude_replies: bool = True,
@@ -132,20 +132,8 @@ class TwitterSpider:
         """
         Access API with requests and return the result with the format of json.
         """
-        retry = self.retry
-        while retry > 0:
-            try:
-                r = requests.get(url=url, params=params, headers=self.headers, proxies=self.proxies)
-                if r.status_code == 200:
-                    return json.loads(r.text)
-                elif r.status_code == 401:
-                    raise UnauthorizedException()
-                else:
-                    raise NetworkException('Met error code {} when visiting {}.'.format(r.status_code, r.url))
-            except requests.exceptions.RequestException as e:
-                self.logger.error(e)
-                retry -= 1
-        raise RetryLimitExceededException('Max retry limit exceeded when visiting {}.'.format(url))
+        r = self.session.get(url=url, params=params, headers=self.headers)
+        return json.loads(r.text)
 
     def _url(self, url):
         return urlparse.urljoin(self.base_url, url)
@@ -524,25 +512,15 @@ class TwitterSpider:
 
 class TwitterDownloader:
 
-    def __init__(self, path: PathGenerator, proxies: dict = None, logger=None, retry=RETRY):
+    def __init__(self, path: PathGenerator, proxies: dict = None, retry=RETRY,
+                 logger=None, session: Session = None):
         self.path = path
-        self.proxies = proxies
-        self.retry = retry
         self.logger = logger if logger is not None else Log.create_logger('TwitterSpider', './twitter.log')
+        self.session = Session(proxies=proxies, retry=retry) if session is None else session
 
     def _get(self, url):
-        retry = self.retry
-        while retry > 0:
-            try:
-                r = requests.get(url=url, proxies=self.proxies)
-                if r.status_code == 200:
-                    return r.content
-                else:
-                    raise NetworkException('Met error code {} when visiting {}.'.format(r.status_code, r.url))
-            except requests.exceptions.RequestException as e:
-                self.logger.error(e)
-                retry -= 1
-        raise RetryLimitExceededException('Max retry limit exceeded when visiting {}.'.format(url))
+        r = self.session.get(url=url)
+        return r.content
 
     def _save(self, content, path):
         if os.path.exists(path):

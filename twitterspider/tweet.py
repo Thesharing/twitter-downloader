@@ -1,7 +1,7 @@
 import os
 import sys
 
-from .media import MediaType
+from spiderutil.typing import MediaType
 
 if sys.version_info[0] > 2:
     import urllib.parse as urlparse

@@ -2,7 +2,7 @@ import re
 import os
 from abc import abstractmethod
 
-from .media import MediaType
+from spiderutil.typing import MediaType
 
 
 class PathGenerator:
