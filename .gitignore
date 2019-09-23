@@ -1,5 +1,8 @@
-token
 .idea
 .vscode
 __pycache__
+
+token
+checkpoint.txt
 *.log
+download

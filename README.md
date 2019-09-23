@@ -5,4 +5,4 @@ Download and archive all your likes and following in your twitter using twitter 
 ### Todo
 
 * Add comments and documents.
-* Enhance the checkpoint.
+* Simplify the logic

@@ -6,6 +6,7 @@ from typing import Iterable
 
 from spiderutil.log import Log
 from spiderutil.network import Session
+from spiderutil.path import StoreByUserName
 
 from .checkpoint import Checkpoint
 from .paths import PathGenerator
@@ -21,6 +22,11 @@ RETRY = 5
 
 
 class TwitterSpider:
+    """
+    Spider to crawl tweets.
+    Including timeline, likes and following users.
+    Return list of tweet objects.
+    """
 
     def __init__(self, token: str, proxies: dict = None, delay=DELAY, retry=RETRY,
                  logger=None, session: Session = None):
@@ -34,15 +40,15 @@ class TwitterSpider:
                        include_retweets: bool = True, exclude_replies: bool = True,
                        start_id=None, since_id=None, delay: float = None) -> Iterable[Tweet]:
         """
-
-        :param screen_name:
-        :param user_id:
-        :param include_retweets:
-        :param exclude_replies:
-        :param start_id:
-        :param since_id:
-        :param delay:
-        :return:
+        Crawl the timeline of specified user.
+        :param screen_name: str, nickname of the user, choose one between screen name and user id
+        :param user_id: str, user id, you can get it from user profile link, choose once between screen name and user id
+        :param include_retweets: bool, include retweets or not, default is True
+        :param exclude_replies: bool, exclude replies or not, default is True
+        :param start_id: int, specify the tweet to start from, every tweet has it's own id, the tweet specified is included
+        :param since_id: int, specify the oldest tweet, the tweets older than specified one will be filtered out
+        :param delay: int, delay between every network request, to avoid anti-spider mechanism
+        :return: iterable list of tweet objects
         """
         if delay is None:
             delay = self.delay
@@ -512,10 +518,10 @@ class TwitterSpider:
 
 class TwitterDownloader:
 
-    def __init__(self, path: PathGenerator, proxies: dict = None, retry=RETRY,
+    def __init__(self, path: PathGenerator = None, proxies: dict = None, retry=RETRY,
                  logger=None, session: Session = None):
-        self.path = path
-        self.logger = logger if logger is not None else Log.create_logger('TwitterSpider', './twitter.log')
+        self.path = StoreByUserName('./download') if path is None else path
+        self.logger = Log.create_logger('TwitterSpider', './twitter.log') if logger is None else logger
         self.session = Session(proxies=proxies, retry=retry) if session is None else session
 
     def _get(self, url):

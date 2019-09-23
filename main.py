@@ -8,6 +8,7 @@ from twitterspider.twitter import TwitterSpider, TwitterDownloader
 from twitterspider.paths import StoreByUserName
 from twitterspider.util import TokenReader
 from twitterspider.tweet import Tweet
+from twitterspider.checkpoint import Checkpoint
 
 if __name__ == '__main__':
     # First, get a developer api token from local file.
@@ -27,36 +28,25 @@ if __name__ == '__main__':
                                    proxies=proxies)
 
     # Init a logger if you want to print logs in the main function
-    # (Loggers are automatically enabled in spider and download,
-    # however, you can replace it with customized one)
     logger = Log.create_logger('TwitterSpider', './twitter.log')
 
     # Init the mongoDB to persist data,
-    # check the connection and drop data in former session
     mongo = MongoDB('Twitter')
+    # Check the connection and drop data in former session
     mongo.check_connection()
     mongo.drop()
 
     # Save failed tweets into another collection
     failed = MongoDB('Twitter-Failed')
 
-    # Use mongoDB to save checkpoint
-    since_id = None
-    checkpoint = MongoDB('Checkpoint')
-    item = checkpoint.find({'name': 'Twitter'})
-    if item is None:
-        # If there is no checkpoint you need to manually add one
-        checkpoint.insert({
-            'name': 'Twitter',
-            'id': 0
-        })
-    else:
-        since_id = item['id']
+    # Use local file to save checkpoint
+    checkpoint = Checkpoint.load('./checkpoint.txt')
+    since_id = checkpoint.tweet_id
 
     # Crawl the timeline and save to mongoDB
-    # If you don't have mongoDB, you can download it directly
     # `screen_name` is the nickname of a user
     for tweet in spider.crawl_timeline(screen_name='zhlongh', since_id=since_id):
+        # If you don't have mongoDB, you can use `downloader.download` download it directly
         mongo.insert(tweet.dict)
 
     # Download all the tweets
@@ -75,7 +65,8 @@ if __name__ == '__main__':
             mongo.remove({'id': tweet.id})
 
         # Save the checkpoint
-        checkpoint.update({'name': 'Twitter'}, {'$set': {'id': tweet.id}})
+        checkpoint.tweet_id = tweet.id
+        checkpoint.save('./checkpoint.txt')
 
         # Since downloader has no delays, you need to add delay manually
         sleep(2)
