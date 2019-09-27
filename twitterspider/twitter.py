@@ -6,10 +6,9 @@ from typing import Iterable
 
 from spiderutil.log import Log
 from spiderutil.network import Session
-from spiderutil.path import StoreByUserName
+from spiderutil.path import StoreByUserName, PathGenerator
 
 from .checkpoint import Checkpoint
-from .paths import PathGenerator
 from .tweet import Tweet
 
 if sys.version_info[0] > 2:

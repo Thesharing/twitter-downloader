@@ -3,9 +3,9 @@ from time import sleep
 from spiderutil.log import Log
 from spiderutil.connector import MongoDB
 from spiderutil.exceptions import SpiderException
+from spiderutil.path import StoreByUserName
 
 from twitterspider.twitter import TwitterSpider, TwitterDownloader
-from twitterspider.paths import StoreByUserName
 from twitterspider.util import TokenReader
 from twitterspider.tweet import Tweet
 from twitterspider.checkpoint import Checkpoint
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     # Crawl the timeline and save to mongoDB
     # `screen_name` is the nickname of a user
-    for tweet in spider.crawl_timeline(screen_name='zhlongh', since_id=since_id):
+    for tweet in spider.crawl_timeline(screen_name='twitter', since_id=since_id):
         # If you don't have mongoDB, you can use `downloader.download` download it directly
         mongo.insert(tweet.dict)
 
