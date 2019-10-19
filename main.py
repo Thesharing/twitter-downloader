@@ -65,7 +65,7 @@ if __name__ == '__main__':
             mongo.remove({'id': tweet.id})
 
         # Save the checkpoint
-        checkpoint.tweet_id = tweet.id
+        checkpoint.update(tweet_id=tweet.id)
         checkpoint.save('./checkpoint.txt')
 
         # Since downloader has no delays, you need to add delay manually
