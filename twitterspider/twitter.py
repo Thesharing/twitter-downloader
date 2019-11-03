@@ -517,9 +517,14 @@ class TwitterSpider:
 
 class TwitterDownloader:
 
-    def __init__(self, path: PathGenerator = None, proxies: dict = None, retry=RETRY,
+    def __init__(self, path=None, proxies: dict = None, retry=RETRY,
                  logger=None, session: Session = None):
-        self.path = StoreByUserName('./download') if path is None else path
+        if path is None:
+            self.path = StoreByUserName('./download')
+        elif type(path) is str:
+            self.path = StoreByUserName(path)
+        else:
+            self.path = path
         self.logger = Log.create_logger('TwitterSpider', './twitter.log') if logger is None else logger
         self.session = Session(proxies=proxies, retry=retry) if session is None else session
 
@@ -537,8 +542,8 @@ class TwitterDownloader:
 
     def download(self, tweet: Tweet):
         user = tweet.user
-        for media in tweet.medias:
+        for medium in tweet.media:
             # def path(self, file_name, media_type, media_id, media_url, user_id, user_name, screen_name)
-            path = self.path.path(file_name=media.file_name, media_type=media.type, media_id=media.id,
-                                  media_url=media.url, user_id=user.id, user_name=user.name, screen_name=user.nickname)
-            self._save(self._get(media.url), path)
+            path = self.path.path(file_name=medium.file_name, media_type=medium.type, media_id=medium.id,
+                                  media_url=medium.url, user_id=user.id, user_name=user.name, screen_name=user.nickname)
+            self._save(self._get(medium.url), path)

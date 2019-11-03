@@ -15,7 +15,7 @@ class Tweet:
         self.source = Tweet(tweet['retweeted_status']) if 'retweeted_status' in tweet else self
         self.id = tweet['id']
         self.user = User(tweet['user'])
-        self.medias = list(Media(media) for media in tweet['extended_entities']['media']) \
+        self.media = list(Media(medium) for medium in tweet['extended_entities']['media']) \
             if 'extended_entities' in tweet else []
         self.text = tweet['text']
 
