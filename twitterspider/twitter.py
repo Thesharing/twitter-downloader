@@ -517,7 +517,7 @@ class TwitterSpider:
 
 class TwitterDownloader:
 
-    def __init__(self, path=None, proxies: dict = None, retry=RETRY,
+    def __init__(self, path: PathGenerator = None, proxies: dict = None, retry=RETRY,
                  logger=None, session: Session = None):
         if path is None:
             self.path = StoreByUserName('./download')
@@ -544,6 +544,7 @@ class TwitterDownloader:
         user = tweet.user
         for medium in tweet.media:
             # def path(self, file_name, media_type, media_id, media_url, user_id, user_name, screen_name)
-            path = self.path.path(file_name=medium.file_name, media_type=medium.type, media_id=medium.id,
-                                  media_url=medium.url, user_id=user.id, user_name=user.name, screen_name=user.nickname)
+            path = self.path.generate(file_name=medium.file_name, media_type=medium.type, media_id=medium.id,
+                                      media_url=medium.url, user_id=user.id, user_name=user.name,
+                                      screen_name=user.nickname)
             self._save(self._get(medium.url), path)

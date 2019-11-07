@@ -57,8 +57,8 @@ if __name__ == '__main__':
         # Download the media
         try:
             downloader.download(tweet.source)
-        except SpiderException:
-            logger.error('Cannot download %s', tweet.id)
+        except SpiderException as e:
+            logger.error('Cannot download %s: %s', tweet.id, e)
             # If failed to download the tweet, log it in another collection for future
             failed.insert(tweet.dict)
         finally:
