@@ -40,7 +40,7 @@ if __name__ == '__main__':
     failed = MongoDB('Twitter-Failed')
 
     # Use local file to save checkpoint
-    checkpoint = Checkpoint.load('./checkpoint.txt')
+    checkpoint = Checkpoint.load_file('./checkpoint.txt')
     since_id = checkpoint.tweet_id
 
     # Crawl the timeline and save to mongoDB
